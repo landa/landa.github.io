@@ -1,12 +1,21 @@
-function LSystem(axiom, productions, len, angle) {
+var lsystem;
+var select;
+
+function LSystem(axiom, productions, len, angle, maxDepth, x, y) {
   this.axiom = axiom;
   this.productions = productions;
   this.len = len;
   this.angle = angle;
+  this.maxDepth = maxDepth;
+  this.x = x;
+  this.y = y;
   this.string = axiom;
   this.depth = 0;
 
   this.step = function() {
+    if (this.depth >= this.maxDepth) {
+      return;
+    }
     var result = '';
     for (var ii = 0; ii < this.string.length; ++ii) {
       var cur = this.string.charAt(ii);
@@ -17,8 +26,14 @@ function LSystem(axiom, productions, len, angle) {
       }
     }
     this.depth++;
-    this.len /= 2;
     this.string = result;
+    this.draw();
+  }
+
+  this.reset = function() {
+    this.string = this.axiom;
+    this.depth = 0;
+    this.draw();
   }
 
   this.toString = function() {
@@ -27,13 +42,17 @@ function LSystem(axiom, productions, len, angle) {
 
   this.draw = function() {
     resetMatrix();
-    translate(width/2.0, height);
+    clear();
+    background(51);
+    stroke(255, 255, 255, 100);
+    noFill();
+    translate(x, y);
     for (var ii = 0; ii < this.string.length; ++ii) {
       var cur = this.string.charAt(ii);
       switch(cur) {
         case 'F':
-          line(0, 0, 0, -this.len);
-          translate(0, -this.len);
+          line(0, 0, 0, -this.len*Math.pow(2, -this.depth));
+          translate(0, -this.len*Math.pow(2, -this.depth));
           break;
         case '+':
           rotate(this.angle);
@@ -55,24 +74,61 @@ function LSystem(axiom, productions, len, angle) {
   }
 }
 
+function getNamedLSystem(name) {
+  switch(name) {
+    case 'Box':
+      return new LSystem('F+F+F+F', { F: 'FF+F+F+F+FF' }, 100, PI/2, 5, 0, height);
+    case 'Koch Curve':
+      return new LSystem('F+F+F+F', { F: 'F+F-F-FF+F+F-F' }, 50, PI/2, 4, width/5.0, height*4/5.0);
+    case 'Rings':
+      return new LSystem('F+F+F+F', { F: 'FF+F+F+F+F+F-F' }, 50, PI/2, 5, width/5.0, height/5.0);
+    case 'Hilbert Curve I':
+      return new LSystem('X', { X: '+YF-XFX-FY+', Y: '-XF+YFY+FX-' }, width/2.0, PI/2, 7, 0, height);
+    case 'Hilbert Curve II':
+      return new LSystem('X', { X: 'XFYFX+F+YFXFY-F-XFYFX', Y: 'YFXFY-F-XFYFX+F+YFXFY' }, width/8.0, PI/2, 4, 0, height);
+    case 'Seaweed':
+    default:
+      return new LSystem('F', { F: 'FF+[+F-F-F]-[-F+F+F]' }, 200, radians(22), 5, width/2.0, height);
+  }
+}
+
+function selectNamedLSystem() {
+  lsystem = getNamedLSystem(select.value());
+  lsystem.step();
+}
+
 function setup() {
   createCanvas(window.innerWidth, window.innerHeight);
-  background(51);
-  stroke(255, 255, 255, 100);
-  noFill();
 
-  var button = createButton('Step');
-  button.position(10, 10);
+  var container = createDiv('');
+  container.class('config');
+  select = createSelect();
+  select.option('Seaweed');
+  select.option('Box');
+  select.option('Koch Curve');
+  select.option('Rings');
+  select.option('Hilbert Curve I');
+  select.option('Hilbert Curve II');
 
-  var productions = {
-    F: 'FF+[+F-F-F]-[-F+F+F]',
-  };
-  lsystem = new LSystem('F', productions, 100, radians(25));
-
-  button.mousePressed(function() {
+  var buttons = createDiv('');
+  var stepButton = createButton('Step');
+  var resetButton = createButton('Reset');
+  stepButton.mousePressed(function() {
     lsystem.step();
-    lsystem.draw();
   });
+  resetButton.mousePressed(function() {
+    lsystem.reset();
+  });
+  buttons.child(stepButton);
+  buttons.child(resetButton);
+  container.child(select);
+  container.child(buttons);
+  container.position(10, 10);
+
+  lsystem = getNamedLSystem('Seaweed');
+  lsystem.draw();
+
+  select.changed(selectNamedLSystem);
 }
 
 function draw() {
